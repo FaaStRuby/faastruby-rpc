@@ -1,0 +1,9 @@
+before_install:
+  - gem update --system
+  - gem update bundler
+rvm:
+  - 2.5.3
+script: bundle exec rspec
+# Send builds to container-based infrastructure
+# http://docs.travis-ci.com/user/workers/container-based-infrastructure/
+sudo: false
