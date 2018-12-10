@@ -61,7 +61,10 @@ module FaaStRuby
         # You should choose a better exception.
         raise ArgumentError, 'too many HTTP redirects' if limit == 0
         http = Net::HTTP.new(uri.host, uri.port)
-        http.use_ssl = use_ssl
+        if use_ssl
+          http.use_ssl = true
+          http.ssl_options = OpenSSL::SSL::OP_NO_SSLv2 + OpenSSL::SSL::OP_NO_SSLv3 + OpenSSL::SSL::OP_NO_COMPRESSION
+        end
         request = method.new(uri.request_uri, headers)
         request.body = body
         response = http.request(request)
