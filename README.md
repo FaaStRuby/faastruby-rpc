@@ -61,3 +61,18 @@ invoke('paulo/hello', raise_errors: false).call
 # or
 FaaStRuby::RPC::Function.new("paulo/hello", raise_errors: false).call(body: nil)
 ```
+
+## Stubbing invoke() in your function tests
+If you are testing a function that invokes another one, you likely will want to fake that call. To do that, use the following test helper:
+
+```ruby
+# This will cause invoke('paulo/hello-world')... to fake the call to
+# 'paulo/hello-world' and instead return the values you pass in the block.
+require 'faastruby-rpc/test_helper'
+
+FaaStRuby::RPC.stub_call('paulo/hello-world') do |response|
+  response.body = "hello, world!"
+  response.code = 200
+  response.headers = {'A-Header' => 'foobar'}
+end
+```

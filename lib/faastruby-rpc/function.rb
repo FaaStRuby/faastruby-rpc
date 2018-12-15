@@ -1,6 +1,21 @@
 module FaaStRuby
   FAASTRUBY_HOST = ENV['FAASTRUBY_HOST'] || "http://localhost:3000"
   module RPC
+    @@response = {}
+    def self.stub_call(function_path, &block)
+      helper = TestHelper.new
+      block.call(helper)
+      response = Struct.new(:body, :code, :headers, :klass)
+      @@response[function_path] = response.new(helper.body, helper.code, helper.headers, helper.klass)
+    end
+    def self.stub_call?(path)
+      @@response[path]
+    end
+
+    def self.response(path)
+      @@response[path]
+    end
+
     class ExecutionError < StandardError
     end
     class Function
@@ -24,7 +39,7 @@ module FaaStRuby
         url = "#{FAASTRUBY_HOST}/#{@path}#{convert_query_params(query_params)}"
         uri = URI.parse(url)
         use_ssl = uri.scheme == 'https' ? true : false
-        response = fetch(use_ssl: use_ssl, uri: uri, headers: headers, method: @methods[method], body: body)
+        response = FaaStRuby::RPC.stub_call?(@path) ? FaaStRuby::RPC.response(@path) : fetch(use_ssl: use_ssl, uri: uri, headers: headers, method: @methods[method], body: body)
         resp_headers = {}
         response.each{|k,v| resp_headers[k] = v}
         case resp_headers['content-type']
