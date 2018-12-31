@@ -1,25 +1,20 @@
 module FaaStRuby
   FAASTRUBY_HOST = ENV['FAASTRUBY_HOST'] || "http://localhost:3000"
   module RPC
-    @@response = {}
-    def self.stub_call(function_path, &block)
-      helper = TestHelper.new
-      block.call(helper)
-      response = Struct.new(:body, :code, :headers, :klass)
-      @@response[function_path] = response.new(helper.body, helper.code, helper.headers, helper.klass)
-    end
-    def self.stub_call?(path)
-      @@response[path]
-    end
-
-    def self.response(path)
-      @@response[path]
-    end
-
     class ExecutionError < StandardError
+    end
+    class Response
+      attr_reader :body, :code, :headers, :klass
+      def initialize(body, code, headers, klass = nil)
+        @body = body
+        @code = code
+        @headers = headers
+        @klass = klass
+      end
     end
     class Function
       def initialize(path, raise_errors: true)
+        @response = nil
         @path = path
         @methods = {
           'post' => Net::HTTP::Post,
@@ -28,51 +23,96 @@ module FaaStRuby
           'patch' => Net::HTTP::Patch,
           'delete' => Net::HTTP::Delete
         }
-        @response = Struct.new(:body, :code, :headers, :klass)
         @raise_errors = raise_errors
       end
-      def with(*args)
-        call(body: Oj.dump(args), headers: {'Content-Type' => 'application/json', 'Faastruby-Rpc' => 'true'})
+      def call_with(*args)
+        execute(req_body: Oj.dump(args), headers: {'Content-Type' => 'application/json', 'Faastruby-Rpc' => 'true'})
       end
 
-      def call(body: nil, query_params: {}, headers: {}, method: 'post')
-        url = "#{FAASTRUBY_HOST}/#{@path}#{convert_query_params(query_params)}"
-        uri = URI.parse(url)
-        use_ssl = uri.scheme == 'https' ? true : false
-        response = FaaStRuby::RPC.stub_call?(@path) ? FaaStRuby::RPC.response(@path) : fetch(use_ssl: use_ssl, uri: uri, headers: headers, method: @methods[method], body: body)
-        resp_headers = {}
-        response.each{|k,v| resp_headers[k] = v}
-        case resp_headers['content-type']
-        when 'application/json'
-          begin
-            resp_body = Oj.load(response.body)
-          rescue Oj::ParseError => e
-            if response.body.is_a?(String)
-              resp_body = response.body
-            else
-              raise e if @raise_errors
-              resp_body = {
-                'error' => e.message,
-                'location' => e.backtrace&.first
-              }
+      def call(*args)
+        return call_with(*args) if args.any?
+        execute(method: 'get')
+      end
+
+      def execute(req_body: nil, query_params: {}, headers: {}, method: 'post')
+        @thread = Thread.new do
+          url = "#{FAASTRUBY_HOST}/#{@path}#{convert_query_params(query_params)}"
+          uri = URI.parse(url)
+          use_ssl = uri.scheme == 'https' ? true : false
+          response = fetch(use_ssl: use_ssl, uri: uri, headers: headers, method: @methods[method], req_body: req_body)
+          resp_headers = {}
+          response.each{|k,v| resp_headers[k] = v}
+          case resp_headers['content-type']
+          when 'application/json'
+            begin
+              resp_body = Oj.load(response.body)
+            rescue Oj::ParseError => e
+              if response.body.is_a?(String)
+                resp_body = response.body
+              else
+                raise e if @raise_errors
+                resp_body = {
+                  'error' => e.message,
+                  'location' => e.backtrace&.first
+                }
+              end
             end
+          when 'application/yaml'
+            resp_body = YAML.load(response.body)
+          else
+            resp_body = response.body
           end
-        when 'application/yaml'
-          resp_body = YAML.load(response.body)
-        else
-          resp_body = response.body
+          raise FaaStRuby::RPC::ExecutionError.new("Function #{@path} returned status code #{response.code} - #{resp_body['error']} - #{resp_body['location']}") if response.code.to_i >= 400 && @raise_errors
+          @response = FaaStRuby::RPC::Response.new(resp_body, response.code.to_i, resp_headers)
         end
-        raise FaaStRuby::RPC::ExecutionError.new("Function #{@path} returned status code #{response.code} - #{resp_body['error']} - #{resp_body['location']}") if response.code.to_i >= 400 && @raise_errors
-        @response.new(resp_body, response.code.to_i, resp_headers)
+        self
+      end
+
+      def returned?
+        !@response.nil?
+      end
+
+      def response
+        wait unless returned?
+        @response
+      end
+
+      def to_s
+        body || ""
+      end
+
+      def body
+        # wait unless returned?
+        response.body
+      end
+
+      def code
+        # wait unless returned?
+        response.code
+      end
+
+      def headers
+        # wait unless returned?
+        response.headers
+      end
+
+      def klass
+        # wait unless returned?
+        response.klass
       end
 
       private
+
+      def wait
+        @thread.join
+      end
+
       def convert_query_params(query_params)
         return "" unless query_params.any?
         "?#{URI.encode_www_form(query_params)}"
       end
 
-      def fetch(use_ssl:, uri:, limit: 10, method: Net::HTTP::Post, headers: {}, body: nil)
+      def fetch(use_ssl:, uri:, limit: 10, method: Net::HTTP::Post, headers: {}, req_body: nil)
         # You should choose a better exception.
         raise ArgumentError, 'too many HTTP redirects' if limit == 0
         http = Net::HTTP.new(uri.host, uri.port)
@@ -81,7 +121,7 @@ module FaaStRuby
           http.ssl_options = OpenSSL::SSL::OP_NO_SSLv2 + OpenSSL::SSL::OP_NO_SSLv3 + OpenSSL::SSL::OP_NO_COMPRESSION
         end
         request = method.new(uri.request_uri, headers)
-        request.body = body
+        request.body = req_body
         response = http.request(request)
 
         case response

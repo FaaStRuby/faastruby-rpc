@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.2.0 - Dec 31 2018
+- Redesigned UX for calling of external functions
+
 ## 0.1.3 - Dec 15 2018
 - Add test helper to stub invoke()
 

@@ -5,69 +5,76 @@ Wrapper to make it easy to call FaaStRuby functions.
 #### What is FaaStRuby?
 FaaStRuby is a serverless platform built for Ruby developers.
 
-* [Tutorial](https://faastruby.io/tutorial.html)
+* [Tutorial](https://faastruby.io/getting-started)
 
-## Calling functions from within a function
+## Calling functions from within a function (RPC calls)
 
-To call a function, use the helper method `invoke`:
+To call another function you must first require it on the top of `handler.rb`, passing a string that will be converted to a constant. You then use the constant to call the function and get its response.
+
+To call the function, use the method `call`. Here is an example.
 
 ```ruby
-# You need the function path, which is WORKSPACE_NAME/FUNCTION_NAME
-function = 'paulo/hello'
-# Invoke the function the get the result
-result = invoke(function).call
-# Or passing arguments:
-result = invoke(function).with('Paulo', likes_ruby: true)
+require_function 'paulo/hello-world', as: 'HelloWorld'
+def handler(event)
+  hello = HelloWorld.call # Async call
+  hello.class #=> FaaStRuby::RPC::Function
+  hello.returned? #=> false # READ BELOW TO UNDERSTAND
+  hello #=> 'Hello, World!' - The RPC response body
+  hello.body #=> 'Hello, World!' - Also the RPC response body
+  hello.returned? #=> true # READ BELOW TO UNDERSTAND
+  hello.code #=> 200 - The status code
+  hello.headers #=> {"content-type"=>"text/plain", "x-content-type-options"=>"nosniff", "connection"=>"close", "content-length"=>"5"} - The response headers
+  render text: hello
+end
 ```
+The biggest problem with serverless applications is the latency resultant of multiple calls to different functions. This is called Tail Latency.
+To minimize this problem, `faastruby-rpc` will handle the request to other functions in an async fashion.
+You should design your application with that in mind. For example, you can design your application so the external function calls are done early in the program execution and perform other tasks while you wait for the response.
 
-`result` is a Struct with the following attributes:
-* result.body - The response body from the function you called
-* result.code - The HTTP status code returned by the function
-* result.headers - The headers returned by the functions
+In the example above, `hello = HelloWorld.call` will issue a non-blocking HTTP request in a separate thread to the called function's endpoint, assign it to a variable and continue execution. When you need the return value from that function, just use the variable. If you call the variable before the request is completed, the execution will block until an answer is received from the external function. To minimize tail latency, just design your application around those async calls.
 
-The arguments in `with` are passed as arguments to your function (after the `event`). You can capture them with positional arguments, keyword arguments or just a generic `*args` if you want to have the flexibility of sending a variable number of arguments.
+If at any point you need to know if the external function call already returned without blocking the execution of your program, use the method `returned?`. So in the example above, `hello.returned?` will be false until the request is fulfilled.
 
-Here is the source code of `paulo/hello`:
+## Passing arguments to the called function
+
+Say you have the following function in `my-workspace/echo`:
 
 ```ruby
-def handler event, name = nil
-  response = name ? "Hello, #{name}!" : 'Hello, there!'
-  render text: response
+# Note the required keyword argument 'name:'
+def handler(event, name:)
+  render text: name
 end
 ```
 
-When you call `invoke`, a request is sent with the following properties:
-* method: POST
-* header `Content-Type: application/json`
-* header `Faastruby-Rpc: true`
-* body: JSON array
+If you want to call this function in another function, you can simply pass the argument within `call`:
 
-`invoke` is just a helper to the following method:
 ```ruby
-# Calling a function that way defaults to method=GET
-FaaStRuby::RPC::Function.new("FUNCTION_PATH").call(body: nil, query_params: {}, headers: {}, method: 'get')
+require_function 'my-workspace/echo', as: 'Echo'
+def handler(event)
+  name = Echo.call(name: 'John Doe') # Async call
+  render text: "Hello, #{name}!" # calling 'name' will block until Echo returns
+end
 ```
+You can use positional or keyword arguments when calling external functions, as long as the external function's `handler` method is defined with matching arguments.
 
 This gem is already required when you run your functions in FaaStRuby, or using `faastruby server`.
 
 ## Handling errors
 
-By default, an exception is raised if the invoked function HTTP status code is greater than 400. This is important to make your functions easier to debug, and you will always know what to expect from that function call.
+By default, an exception is raised if the invoked function HTTP status code is greater or equal to 400. This is important to make your functions easier to debug, and you will always know what to expect from that function call.
 
-To disable this behaviour, pass `raise_errors: false` to the `invoke` method, or to `FaaStRuby::RPC::Function.new`. Example:
+To disable this behaviour, pass `raise_errors: false` when requiring the function. For example:
 
 ```ruby
-invoke('paulo/hello', raise_errors: false).call
-# or
-FaaStRuby::RPC::Function.new("paulo/hello", raise_errors: false).call(body: nil)
+require_function 'paulo/hello-world', as: 'HelloWorld', raise_errors: false
 ```
 
-## Stubbing invoke() in your function tests
-If you are testing a function that invokes another one, you likely will want to fake that call. To do that, use the following test helper:
+## Stubbing RPC calls in your function tests
+If you are testing a function that required another one, you likely will want to fake that call. To do that, use the following test helper:
 
 ```ruby
-# This will cause invoke('paulo/hello-world')... to fake the call to
-# 'paulo/hello-world' and instead return the values you pass in the block.
+# This will make it fake the calls to 'paulo/hello-world'
+# and return the values you pass in the block.
 require 'faastruby-rpc/test_helper'
 
 FaaStRuby::RPC.stub_call('paulo/hello-world') do |response|
