@@ -11,6 +11,9 @@ module FaaStRuby
         @headers = headers
         @klass = klass
       end
+      def body=(value)
+        @body = value
+      end
     end
     class Function
       def initialize(path, raise_errors: true)
@@ -25,46 +28,44 @@ module FaaStRuby
         }
         @raise_errors = raise_errors
       end
-      def call_with(*args)
-        execute(req_body: Oj.dump(args), headers: {'Content-Type' => 'application/json', 'Faastruby-Rpc' => 'true'})
-      end
 
       def call(*args)
-        return call_with(*args) if args.any?
-        execute(method: 'get')
+        @thread = Thread.new do
+          output = args.any? ? call_with(*args) : execute(method: 'get')
+          @response.body = yield(output) if block_given?
+        end
+        self
       end
 
       def execute(req_body: nil, query_params: {}, headers: {}, method: 'post')
-        @thread = Thread.new do
-          url = "#{FAASTRUBY_HOST}/#{@path}#{convert_query_params(query_params)}"
-          uri = URI.parse(url)
-          use_ssl = uri.scheme == 'https' ? true : false
-          response = fetch(use_ssl: use_ssl, uri: uri, headers: headers, method: @methods[method], req_body: req_body)
-          resp_headers = {}
-          response.each{|k,v| resp_headers[k] = v}
-          case resp_headers['content-type']
-          when 'application/json'
-            begin
-              resp_body = Oj.load(response.body)
-            rescue Oj::ParseError => e
-              if response.body.is_a?(String)
-                resp_body = response.body
-              else
-                raise e if @raise_errors
-                resp_body = {
-                  'error' => e.message,
-                  'location' => e.backtrace&.first
-                }
-              end
+        url = "#{FAASTRUBY_HOST}/#{@path}#{convert_query_params(query_params)}"
+        uri = URI.parse(url)
+        use_ssl = uri.scheme == 'https' ? true : false
+        response = fetch(use_ssl: use_ssl, uri: uri, headers: headers, method: @methods[method], req_body: req_body)
+        resp_headers = {}
+        response.each{|k,v| resp_headers[k] = v}
+        case resp_headers['content-type']
+        when 'application/json'
+          begin
+            resp_body = Oj.load(response.body)
+          rescue Oj::ParseError => e
+            if response.body.is_a?(String)
+              resp_body = response.body
+            else
+              raise e if @raise_errors
+              resp_body = {
+                'error' => e.message,
+                'location' => e.backtrace&.first
+              }
             end
-          when 'application/yaml'
-            resp_body = YAML.load(response.body)
-          else
-            resp_body = response.body
           end
-          raise FaaStRuby::RPC::ExecutionError.new("Function #{@path} returned status code #{response.code} - #{resp_body['error']} - #{resp_body['location']}") if response.code.to_i >= 400 && @raise_errors
-          @response = FaaStRuby::RPC::Response.new(resp_body, response.code.to_i, resp_headers)
+        when 'application/yaml'
+          resp_body = YAML.load(response.body)
+        else
+          resp_body = response.body
         end
+        raise FaaStRuby::RPC::ExecutionError.new("Function #{@path} returned status code #{response.code} - #{resp_body['error']} - #{resp_body['location']}") if response.code.to_i >= 400 && @raise_errors
+        @response = FaaStRuby::RPC::Response.new(resp_body, response.code.to_i, resp_headers)
         self
       end
 
@@ -78,7 +79,7 @@ module FaaStRuby
       end
 
       def to_s
-        body || ""
+        body.to_s || ""
       end
 
       def body
@@ -102,6 +103,10 @@ module FaaStRuby
       end
 
       private
+
+      def call_with(*args)
+        execute(req_body: Oj.dump(args), headers: {'Content-Type' => 'application/json', 'Faastruby-Rpc' => 'true'})
+      end
 
       def wait
         @thread.join

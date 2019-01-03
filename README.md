@@ -59,6 +59,23 @@ You can use positional or keyword arguments when calling external functions, as 
 
 This gem is already required when you run your functions in FaaStRuby, or using `faastruby server`.
 
+## Running code when the invoked function responds
+If you pass a block when you call another function, the block will execute as soon as the response arrives. For example:
+
+```ruby
+require_function 'my-workspace/echo', as: 'Echo'
+def handler(event)
+  name = Echo.call(name: 'john doe') do |response|
+    # response.body      #=> "john doe"
+    # response.code      #=> 200
+    # response.headers   #=> {"content-type"=>"text/plain",...}
+    # What you return from the block will be the value of `name` or `name.body`
+    response.body.capitalize
+  end
+  render text: "Hello, #{name}!" # Will render 'John Doe'
+end
+```
+
 ## Handling errors
 
 By default, an exception is raised if the invoked function HTTP status code is greater or equal to 400. This is important to make your functions easier to debug, and you will always know what to expect from that function call.
