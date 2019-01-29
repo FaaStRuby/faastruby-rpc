@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.2.2 - unreleased
+- Improved response string from invoked function when there's an error.
+
 ## 0.2.1 - Jan 3rd 2019
 - Pass a block when calling a function and the code will be executed when the function responds, and the block's return value will replace the function's response body
 

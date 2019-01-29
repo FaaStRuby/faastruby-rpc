@@ -64,7 +64,11 @@ module FaaStRuby
         else
           resp_body = response.body
         end
-        raise FaaStRuby::RPC::ExecutionError.new("Function #{@path} returned status code #{response.code} - #{resp_body['error']} - #{resp_body['location']}") if response.code.to_i >= 400 && @raise_errors
+        if response.code.to_i >= 400 && @raise_errors
+          location = resp_body['location'] ? " @ #{resp_body['location']}" : nil
+          error_msg = "#{resp_body['error']}#{location}"
+          raise FaaStRuby::RPC::ExecutionError.new("Function #{@path} returned status code #{response.code}: #{error_msg}")
+        end
         @response = FaaStRuby::RPC::Response.new(resp_body, response.code.to_i, resp_headers)
         self
       end
