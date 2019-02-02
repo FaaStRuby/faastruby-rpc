@@ -41,16 +41,16 @@ module FaaStRuby
         url = "#{FAASTRUBY_HOST}/#{@path}#{convert_query_params(query_params)}"
         uri = URI.parse(url)
         use_ssl = uri.scheme == 'https' ? true : false
-        response = fetch(use_ssl: use_ssl, uri: uri, headers: headers, method: @methods[method], req_body: req_body)
+        function_response = fetch(use_ssl: use_ssl, uri: uri, headers: headers, method: @methods[method], req_body: req_body)
         resp_headers = {}
-        response.each{|k,v| resp_headers[k] = v}
+        function_response.each{|k,v| resp_headers[k] = v}
         case resp_headers['content-type']
         when 'application/json'
           begin
-            resp_body = Oj.load(response.body)
+            resp_body = Oj.load(function_response.body)
           rescue Oj::ParseError => e
-            if response.body.is_a?(String)
-              resp_body = response.body
+            if function_response.body.is_a?(String)
+              resp_body = function_response.body
             else
               raise e if @raise_errors
               resp_body = {
@@ -60,16 +60,16 @@ module FaaStRuby
             end
           end
         when 'application/yaml'
-          resp_body = YAML.load(response.body)
+          resp_body = YAML.load(function_response.body)
         else
-          resp_body = response.body
+          resp_body = function_response.body
         end
-        if response.code.to_i >= 400 && @raise_errors
+        if function_response.code.to_i >= 400 && @raise_errors
           location = resp_body['location'] ? " @ #{resp_body['location']}" : nil
           error_msg = "#{resp_body['error']}#{location}"
-          raise FaaStRuby::RPC::ExecutionError.new("Function #{@path} returned status code #{response.code}: #{error_msg}")
+          raise FaaStRuby::RPC::ExecutionError.new("Function #{@path} returned status code #{function_response.code}: #{error_msg}")
         end
-        @response = FaaStRuby::RPC::Response.new(resp_body, response.code.to_i, resp_headers)
+        @response = FaaStRuby::RPC::Response.new(resp_body, function_response.code.to_i, resp_headers)
         self
       end
 
