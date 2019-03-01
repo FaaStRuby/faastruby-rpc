@@ -1,5 +1,5 @@
 module FaaStRuby
-  FAASTRUBY_HOST = ENV['FAASTRUBY_HOST'] || "http://localhost:3000"
+  FAASTRUBY_WORKSPACE_BASE_HOST = ENV['FAASTRUBY_WORKSPACE_BASE_HOST']
   module RPC
     class ExecutionError < StandardError
     end
@@ -37,8 +37,13 @@ module FaaStRuby
         self
       end
 
+      def get_endpoint(query_params)
+        return "https://#{FAASTRUBY_WORKSPACE_BASE_HOST}/#{@path}#{query_params}" if FAASTRUBY_WORKSPACE_BASE_HOST
+        return "http://localhost:3000/#{@path}#{query_params}"
+      end
+
       def execute(req_body: nil, query_params: {}, headers: {}, method: 'post')
-        url = "#{FAASTRUBY_HOST}/#{@path}#{convert_query_params(query_params)}"
+        url = get_endpoint(convert_query_params(query_params))
         uri = URI.parse(url)
         use_ssl = uri.scheme == 'https' ? true : false
         function_response = fetch(use_ssl: use_ssl, uri: uri, headers: headers, method: @methods[method], req_body: req_body)
@@ -67,7 +72,7 @@ module FaaStRuby
         if function_response.code.to_i >= 400 && @raise_errors
           location = resp_body['location'] ? " @ #{resp_body['location']}" : nil
           error_msg = "#{resp_body['error']}#{location}"
-          raise FaaStRuby::RPC::ExecutionError.new("Function #{@path} returned status code #{function_response.code}: #{error_msg}")
+          raise FaaStRuby::RPC::ExecutionError.new("Function '#{@path}' returned status code #{function_response.code}: #{error_msg}")
         end
         @response = FaaStRuby::RPC::Response.new(resp_body, function_response.code.to_i, resp_headers)
         self
@@ -75,6 +80,11 @@ module FaaStRuby
 
       def returned?
         !@response.nil?
+      end
+
+      def method_missing(m, *args, &block)
+        rsp = response.body
+        rsp.send(m.to_sym, *args, &block)
       end
 
       def response
@@ -85,6 +95,8 @@ module FaaStRuby
       def to_s
         body.to_s || ""
       end
+
+      # alias_method :read, :to_s
 
       def body
         # wait unless returned?
