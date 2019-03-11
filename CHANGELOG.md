@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.2.3 - Mar 11 2019
+- Add support for faastruby 0.5
+
 ## 0.2.2 - Mar 8 2019
 - Improved response string from invoked function when there's an error.
 - Catch method missing calls and try them against the result once it arrives

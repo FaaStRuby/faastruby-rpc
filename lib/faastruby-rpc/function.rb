@@ -1,5 +1,4 @@
 module FaaStRuby
-  FAASTRUBY_WORKSPACE_BASE_HOST = ENV['FAASTRUBY_WORKSPACE_BASE_HOST']
   module RPC
     class ExecutionError < StandardError
     end
@@ -16,6 +15,11 @@ module FaaStRuby
       end
     end
     class Function
+      @@region = ENV['REGION']
+      @@endpoint_base_host = ENV['ENDPOINT_BASE_HOST']
+      def self.workspace=(workspace)
+        @@workspace = workspace
+      end
       def initialize(path, raise_errors: true)
         @response = nil
         @path = path
@@ -38,7 +42,7 @@ module FaaStRuby
       end
 
       def get_endpoint(query_params)
-        return "https://#{FAASTRUBY_WORKSPACE_BASE_HOST}/#{@path}#{query_params}" if FAASTRUBY_WORKSPACE_BASE_HOST
+        return "https://#{@@workspace}.#{@@region}.#{@@endpoint_base_host}/#{@path}#{query_params}" if @@endpoint_base_host && @@region && @@workspace
         return "http://localhost:3000/#{@path}#{query_params}"
       end
 
