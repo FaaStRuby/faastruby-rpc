@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.2.4 - Mar 14 2019
+- Only capitalize first letter when creating constant to assign to fulction call
+
 ## 0.2.3 - Mar 11 2019
 - Add support for faastruby 0.5
 
