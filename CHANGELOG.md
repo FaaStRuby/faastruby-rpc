@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.5 - Mar 16 2019
+- Add `inspect` method for when `p` is called. Ex: p Constant.call
+- Added alias methods `value` - `Constant.call.value`
+- Remove references to workspace from README, as the workspace name is not part of the URI path anymore.
+
 ## 0.2.4 - Mar 14 2019
 - Only capitalize first letter when creating constant to assign to fulction call
 

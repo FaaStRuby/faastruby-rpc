@@ -14,13 +14,13 @@ To call another function you must first require it on the top of `handler.rb`, p
 To call the function, use the method `call`. Here is an example.
 
 ```ruby
-require_function 'paulo/hello-world', as: 'HelloWorld'
+require_function 'hello-world', as: 'HelloWorld'
 def handler(event)
   hello = HelloWorld.call # Async call
   hello.class #=> FaaStRuby::RPC::Function
   hello.returned? #=> false # READ BELOW TO UNDERSTAND
-  hello #=> 'Hello, World!' - The RPC response body
-  hello.body #=> 'Hello, World!' - Also the RPC response body
+  puts hello #=> Hello, World! - Will block and wait until the response arrives
+  returned_value = hello.value #=> 'Hello, World!' - Block, wait for the response and assign to variable 'returned_value'
   hello.returned? #=> true # READ BELOW TO UNDERSTAND
   hello.code #=> 200 - The status code
   hello.headers #=> {"content-type"=>"text/plain", "x-content-type-options"=>"nosniff", "connection"=>"close", "content-length"=>"5"} - The response headers
@@ -37,7 +37,7 @@ If at any point you need to know if the external function call already returned 
 
 ## Passing arguments to the called function
 
-Say you have the following function in `my-workspace/echo`:
+Say you have the following function named `echo`:
 
 ```ruby
 # Note the required keyword argument 'name:'
@@ -49,7 +49,7 @@ end
 If you want to call this function in another function, you can simply pass the argument within `call`:
 
 ```ruby
-require_function 'my-workspace/echo', as: 'Echo'
+require_function 'echo', as: 'Echo'
 def handler(event)
   name = Echo.call(name: 'John Doe') # Async call
   render text: "Hello, #{name}!" # calling 'name' will block until Echo returns
@@ -63,7 +63,7 @@ This gem is already required when you run your functions in FaaStRuby, or using 
 If you pass a block when you call another function, the block will execute as soon as the response arrives. For example:
 
 ```ruby
-require_function 'my-workspace/echo', as: 'Echo'
+require_function 'echo', as: 'Echo'
 def handler(event)
   name = Echo.call(name: 'john doe') do |response|
     # response.body      #=> "john doe"
@@ -90,11 +90,11 @@ require_function 'paulo/hello-world', as: 'HelloWorld', raise_errors: false
 If you are testing a function that required another one, you likely will want to fake that call. To do that, use the following test helper:
 
 ```ruby
-# This will make it fake the calls to 'paulo/hello-world'
+# This will make it fake the calls to 'hello-world'
 # and return the values you pass in the block.
 require 'faastruby-rpc/test_helper'
 
-FaaStRuby::RPC.stub_call('paulo/hello-world') do |response|
+FaaStRuby::RPC.stub_call('hello-world') do |response|
   response.body = "hello, world!"
   response.code = 200
   response.headers = {'A-Header' => 'foobar'}

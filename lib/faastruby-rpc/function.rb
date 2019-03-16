@@ -86,6 +86,10 @@ module FaaStRuby
         !@response.nil?
       end
 
+      def value
+        body
+      end
+
       def method_missing(m, *args, &block)
         rsp = response.body
         rsp.send(m.to_sym, *args, &block)
@@ -98,6 +102,10 @@ module FaaStRuby
 
       def to_s
         body.to_s || ""
+      end
+
+      def inspect
+        body.inspect || ""
       end
 
       # alias_method :read, :to_s
