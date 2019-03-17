@@ -1,11 +1,11 @@
 # faastruby-rpc
 
-Wrapper to make it easy to call FaaStRuby functions.
+Wrapper to make it easy to call faastRuby functions.
 
-#### What is FaaStRuby?
-FaaStRuby is a serverless platform built for Ruby developers.
+#### What is faastRuby?
+faastRuby is a serverless software development platform for Ruby and Crystal.
 
-* [Tutorial](https://faastruby.io/getting-started)
+* [Tutorial](https://faastruby.io/docs/faastruby-local)
 
 ## Calling functions from within a function (RPC calls)
 
@@ -57,7 +57,7 @@ end
 ```
 You can use positional or keyword arguments when calling external functions, as long as the external function's `handler` method is defined with matching arguments.
 
-This gem is already required when you run your functions in FaaStRuby, or using `faastruby server`.
+This gem is already required when you run your functions in faastRuby, or using `faastruby server`.
 
 ## Running code when the invoked function responds
 If you pass a block when you call another function, the block will execute as soon as the response arrives. For example:
