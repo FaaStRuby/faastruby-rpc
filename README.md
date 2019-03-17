@@ -1,3 +1,4 @@
+![faastRuby](https://faastruby.io/wp-content/uploads/2019/03/logo-positive.png)
 # faastruby-rpc
 
 Wrapper to make it easy to call faastRuby functions.
