@@ -7,7 +7,7 @@ faastRuby is a serverless software development platform for Ruby and Crystal.
 
 * [Tutorial](https://faastruby.io/docs/faastruby-local)
 
-## Calling functions from within a function (RPC calls)
+## Calling functions from within a function asynchronously
 
 To call another function you must first require it on the top of `handler.rb`, passing a string that will be converted to a constant. You then use the constant to call the function and get its response.
 
