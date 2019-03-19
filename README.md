@@ -41,13 +41,14 @@ If at any point you need to know if the external function call already returned 
 Say you have the following function named `echo`:
 
 ```ruby
-# Note the required keyword argument 'name:'
-def handler(event, name:)
-  render text: name
+require 'json'
+def handler(event)
+  arguments = JSON.parse event.body
+  render text: arguments['name']
 end
 ```
 
-If you want to call this function in another function, you can simply pass the argument within `call`:
+If you want to call this function from another function, you can simply pass the argument within `call`:
 
 ```ruby
 require_function 'echo', as: 'Echo'
@@ -56,9 +57,9 @@ def handler(event)
   render text: "Hello, #{name}!" # calling 'name' will block until Echo returns
 end
 ```
-You can use positional or keyword arguments when calling external functions, as long as the external function's `handler` method is defined with matching arguments.
+You can use positional or keyword arguments when calling external functions, and have the called function's `handler` method parse the `event.body` as JSON.
 
-This gem is already required when you run your functions in faastRuby, or using `faastruby server`.
+This gem is already required when you run your functions in faastRuby, or using `faastruby local`.
 
 ## Running code when the invoked function responds
 If you pass a block when you call another function, the block will execute as soon as the response arrives. For example:
@@ -84,7 +85,7 @@ By default, an exception is raised if the invoked function HTTP status code is g
 To disable this behaviour, pass `raise_errors: false` when requiring the function. For example:
 
 ```ruby
-require_function 'paulo/hello-world', as: 'HelloWorld', raise_errors: false
+require_function 'hello-world', as: 'HelloWorld', raise_errors: false
 ```
 
 ## Stubbing RPC calls in your function tests
