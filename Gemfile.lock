@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    faastruby-rpc (0.2.4)
+    faastruby-rpc (0.2.6)
       oj (~> 3.6)
 
 GEM
