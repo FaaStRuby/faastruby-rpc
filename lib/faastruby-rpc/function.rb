@@ -133,7 +133,7 @@ module FaaStRuby
       private
 
       def call_with(*args)
-        execute(req_body: Oj.dump(args), headers: {'Content-Type' => 'application/json', 'Faastruby-Rpc' => 'true'})
+        execute(req_body: Oj.dump(args, mode: :compat), headers: {'Content-Type' => 'application/json', 'Faastruby-Rpc' => 'true'})
       end
 
       def wait

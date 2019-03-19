@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.6 - Mar 18 2019
+- Multiple calls to the same function no longer overwrite each other.
+- Use Oj mode :compat when converting keyword arguments to JSON.
+
 ## 0.2.5 - Mar 16 2019
 - Add `inspect` method for when `p` is called. Ex: p Constant.call
 - Added alias methods `value` - `Constant.call.value`
