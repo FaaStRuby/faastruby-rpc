@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.2.7 - Apr 7 2019
+- Make env vars match the ones on faastruby-cli
+
 ## 0.2.6 - Mar 18 2019
 - Multiple calls to the same function no longer overwrite each other.
 - Use Oj mode :compat when converting keyword arguments to JSON.

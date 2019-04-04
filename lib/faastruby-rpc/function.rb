@@ -15,8 +15,9 @@ module FaaStRuby
       end
     end
     class Function
-      @@region = ENV['REGION']
-      @@endpoint_base_host = ENV['ENDPOINT_BASE_HOST']
+      @@region = ENV['FAASTRUBY_REGION']
+      @@endpoint_base_host = ENV['FAASTRUBY_WORKSPACE_BASE_HOST']
+      @@endpoint_base_protocol = ENV['FAASTRUBY_URL_PROTOCOL'] || 'https'
       def self.workspace=(workspace)
         @@workspace = workspace
       end
@@ -42,7 +43,7 @@ module FaaStRuby
       end
 
       def get_endpoint(query_params)
-        return "https://#{@@workspace}.#{@@region}.#{@@endpoint_base_host}/#{@path}#{query_params}" if @@endpoint_base_host && @@region && @@workspace
+        return "#{@@endpoint_base_protocol}://#{@@workspace}.#{@@region}.#{@@endpoint_base_host}/#{@path}#{query_params}" if @@endpoint_base_host && @@region && @@workspace
         return "http://localhost:3000/#{@path}#{query_params}"
       end
 
